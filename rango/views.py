@@ -1,7 +1,7 @@
 
 from django.shortcuts import render,redirect
 
-from django.http import HttpResponse
+from django.http import HttpResponse, response
 from rango.models import Page
 from rango.models import Category
 
@@ -13,6 +13,8 @@ from django.urls import reverse
 from django.contrib.auth import authenticate, login,logout
 
 from django.contrib.auth.decorators import login_required
+
+from datetime import datetime
 
 def index(request):
     #html="Rango says hey there partner!"+'<a href="/rango/about/">About</a>'
@@ -26,12 +28,19 @@ def index(request):
     context_dict['categories'] = category_list
     context_dict['pages'] = page_list
 
-    return render(request,'rango/index.html',context=context_dict)
+    visitor_cookie_handler(request)
+    context_dict['visits'] = request.session['visits']
+
+    response = render(request, 'rango/index.html', context_dict)
+
+    return response
     
 
 def about(request):
     #return HttpResponse("Rango says here is the about page."+'<a href="/rango/">Index</a>')
     #context_dict={'boldmessage':'This tutorial has been put together by Xiaoyuan Zhang'}
+
+    
     return render(request,'rango/about.html')
 
 def show_category(request,category_name_slug):
@@ -148,3 +157,26 @@ def user_logout(request):
     logout(request)
 
     return redirect(reverse('rango:index'))
+
+
+def visitor_cookie_handler(request, response):
+    visits = int(request.COOKIES.get('visits', '1'))
+    last_visit_cookie = get_server_side_cookie(request,'last_visit',str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7],'%Y-%m-%d %H:%M:%S')
+
+    if (datetime.now() - last_visit_time).days > 0:
+        visits = visits + 1
+
+        request.session['last_visis'] = str(datetime.now())
+    else:
+
+        request.session['last_visit']=last_visit_cookie
+
+    response.session['visits'] = visits
+
+def get_server_side_cookie(request, cookie,default_val=None):
+    val = request.session.get(cookie)
+    if not val:
+        val = default_val
+    return val
+
